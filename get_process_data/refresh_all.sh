@@ -4,14 +4,13 @@
 
 ## Uncomment to re-scrape mediabiasfactcheck.com for website bias labels
 ## and recreate database of website labels
-python3 labels_MBFC.py && python3 join_source_lists.py 
+python3 labels_MBFC.py && python3 join_source_lists.py
 
 
 ## Uncomment to delete scraped articles
-#python3 mongo_driver.py --kill articles &&
+python3 mongo_driver.py --kill articles &&
 
 ## Uncomment to scrape articles from websites in database, preprocess scraped articles,
-
 python3 webcrawler.py 
 
 ## Uncomment to create new vocabulary vector

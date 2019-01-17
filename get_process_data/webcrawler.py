@@ -37,6 +37,7 @@ class NewsSource:
         self._data = source
         self.categories = source['Category']
         self.url = self.test_https(source['url'].split('/')[0])
+        self.source_url = source['url']
         if self.url == False:
             return
         self.get_links()
@@ -109,6 +110,7 @@ class NewsSource:
                 article_data['flags'] = self.categories
                 article_data['source'] = self.url
                 article_data['url'] = article.url
+                article_data['source_url'] = self.source_url
                 print(self.categories, '\t', article_data['source'], article_data['title'])
                 mongo_driver.insert('articles', article_data)
 
@@ -158,22 +160,35 @@ def get_batch(batch_size):
 
 if __name__ == '__main__':
 
-    # news_sources = mongo_driver.db['all_sources'].aggregate(
-    #     [{
-    #         "$sample": {
-    #             'size': mongo_driver.db['all_sources'].count()
-    #         }
-    #     }], allowDiskUse=True)
-    news_sources = mongo_driver.db['all_sources'].find({
-        'Category': {
-            "$in": ['extreme left', 'satire', 'hate', 'pro-science', 'very high', 'low', 'right']
-        }
-    })
-    # news_sources = list(mongo_driver.db['all_sources'].find())
+    def get_news_sources():
+        return mongo_driver.db['all_sources'].find()
+
+    def urls_already_scraped(batch):
+        return any([u['url'] in sources_already_scraped for u in batch])
+
+    news_sources = get_news_sources()
     batch_size = 20
 
+    sources = set()
+    for i in get_news_sources():
+        sources.add(i['url'])
+    print("total num sources", len(sources))
+
+    sources_already_scraped = set()
+    for article in mongo_driver.db['articles'].find():
+        url = article['source_url']
+        sources_already_scraped.add(url)
+    print("num sources already scraped", len(sources_already_scraped))
+
+    print(mongo_driver.check_for_dups('articles', 'url'))
+
     def run_scraper():
-        batch = get_batch(batch_size)
+        i = 1
+        batch = list(get_batch(batch_size))
+        while urls_already_scraped(batch):
+            batch = list(get_batch(batch_size))
+            i += 1
+        print("Using batch %d" % i)
         threadpool(batch)
 
     for i in range(mongo_driver.db['all_sources'].count() // batch_size):
